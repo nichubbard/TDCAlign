@@ -1,30 +1,30 @@
 #define TDCAlign_cxx
-// The class definition in TDCAlign.h has been generated automatically
-// by the ROOT utility TTree::MakeSelector(). This class is derived
-// from the ROOT class TSelector. For more information on the TSelector
-// framework see $ROOTSYS/README/README.SELECTOR or the ROOT User Manual.
+   // The class definition in TDCAlign.h has been generated automatically
+   // by the ROOT utility TTree::MakeSelector(). This class is derived
+   // from the ROOT class TSelector. For more information on the TSelector
+   // framework see $ROOTSYS/README/README.SELECTOR or the ROOT User Manual.
 
-// The following methods are defined in this file:
-//    Begin():        called every time a loop on the tree starts,
-//                    a convenient place to create your histograms.
-//    SlaveBegin():   called after Begin(), when on PROOF called only on the
-//                    slave servers.
-//    Process():      called for each event, in this function you decide what
-//                    to read and fill your histograms.
-//    SlaveTerminate: called at the end of the loop on the tree, when on PROOF
-//                    called only on the slave servers.
-//    Terminate():    called at the end of the loop on the tree,
-//                    a convenient place to draw/fit your histograms.
-//
-// To use this file, try the following session on your Tree T:
-//
-// root> T->Process("TDCAlign.C")
-// root> T->Process("TDCAlign.C","some options")
-// root> T->Process("TDCAlign.C+")
-//
-//
-namespace std{}
-using namespace std;
+   // The following methods are defined in this file:
+   //    Begin():        called every time a loop on the tree starts,
+   //                    a convenient place to create your histograms.
+   //    SlaveBegin():   called after Begin(), when on PROOF called only on the
+   //                    slave servers.
+   //    Process():      called for each event, in this function you decide what
+   //                    to read and fill your histograms.
+   //    SlaveTerminate: called at the end of the loop on the tree, when on PROOF
+   //                    called only on the slave servers.
+   //    Terminate():    called at the end of the loop on the tree,
+   //                    a convenient place to draw/fit your histograms.
+   //
+   // To use this file, try the following session on your Tree T:
+   //
+   // root> T->Process("TDCAlign.C")
+   // root> T->Process("TDCAlign.C","some options")
+   // root> T->Process("TDCAlign.C+")
+   //
+   //
+   namespace std{}
+   using namespace std;
 
 #include "TDCAlign.h"
 #include <fstream>
@@ -32,19 +32,20 @@ using namespace std;
 #include <sstream>
 #include <TCanvas.h>
 #include <TCutG.h>
+#include <TF2.h>
 #include <TH1.h>
 #include <TH2.h>
 #include <TStyle.h>
 
-static const size_t channel_start = 704;
-static const size_t channel_end = 895;
-static const size_t channels = channel_end - channel_start;
+   static const size_t channel_start = 704;
+   static const size_t channel_end = 895;
+   static const size_t channels = channel_end - channel_start;
 
-static const int h_bins = 20000;
-static const int h_start = -10000;
-static const int h_end = 10000;
+   static const int h_bins = 3000;
+   static const int h_start = -4000;
+   static const int h_end = -1000;
 
-TH1F* tdc[channels];
+   TH1F* tdc[channels];
 
 
 void TDCAlign::Begin(TTree * /*tree*/)
@@ -58,7 +59,7 @@ void TDCAlign::Begin(TTree * /*tree*/)
     for (size_t i = 0; i < channels; ++i)
     {
         std::stringstream buf;
-        buf << "tdc" << i;
+        buf << "tdc" << (channel_start + i);
         tdc[i] = new TH1F(buf.str().c_str(), "", h_bins, h_start, h_end);
     }
 }
@@ -131,15 +132,18 @@ void TDCAlign::Terminate()
     ofstream output;
     output.open("TDCAlignPR264.dat");
     using std::endl;
-    output << channel_start << " " << 0 << endl;
-    //TCanvas* c1 = new TCanvas("c1");
-    for (size_t i = 1; i < channels; ++i)
+    TCanvas* c1 = new TCanvas("c1");
+    for (size_t i = 0; i < channels; ++i)
     {
-        //tdc[i]->Draw("");
-        //c1->Print("tdcalign/TDCChannel" + TString::LLtoa(i + channel_start, 10) + ".png",
-                 //"png");
         int bin = tdc[i]->GetMaximumBin();
-        int offset = bin - bin0;
+        float pos = tdc[i]->GetBinCenter(bin);
+        tdc[i]->Draw("");
+        TF1* fit = new TF1("fit", "gaus", pos - 100, pos + 100);
+        fit->SetParameter(1, pos);
+        tdc[i]->Fit(fit, "R");
+        float offset = fit->GetParameter(1);
+        c1->Print("tdcalign/TDCChannel" + TString::LLtoa(i + channel_start, 10) + ".png",
+               "png");
         output << i + channel_start << " " << offset << endl;
     }
     output << "eof";
